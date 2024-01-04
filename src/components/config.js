@@ -1,4 +1,5 @@
 export default {
+  // 讲树形数组转成数组
   flattening(tree) {
     let flatData = []
     let stack = [...tree]
@@ -32,7 +33,8 @@ export default {
     return flatData
   },
 
-  setTreeStatus(children, status){
+  // 设置子级的展开状态
+  setChildrenExpand(children, status){
     const travel = (list) => {
       list.forEach((child) => {
         child.visible = status
@@ -45,6 +47,57 @@ export default {
       })
     }
     travel(children)
+  },
+
+  // 设置父级的展开状态
+  setParentExpand(item, treeListData) {
+    const parentIdArr = item._parentIds.split(",").reverse();
+    parentIdArr.forEach((parentId) => {
+      const parentItem = treeListData.find((i) => i.id === parentId);
+      parentItem.isExpand = true;
+      parentItem.children.forEach((i) => (i.visible = true));
+    });
+  },
+
+  // 设置子级的选中状态
+  setChildrenCheck(children, checked){
+    const travel = (list) => {
+      list.forEach((child) => {
+        child.checked = checked
+        child.indeterminate = false
+        if (child.children && child.children.length) {
+          travel(child.children)
+        }
+      })
+    }
+    travel(children)
+  },
+
+  // 设置父级的选中状态
+  setParentCheck(item, checked, treeListData){
+    const parentIdArr = item._parentIds.split(',').reverse()
+    parentIdArr.forEach(parentId=>{
+      const parentItem = treeListData.find(i=>i.id === parentId )
+      if(checked){
+        const everyChecked = parentItem.children.every(i=>i.checked)
+        if(everyChecked){
+          parentItem.checked = true
+          parentItem.indeterminate = false
+        }else {
+          parentItem.checked = false
+          parentItem.indeterminate = true
+        }
+      }else {
+        const everyNotChecked = parentItem.children.every(i=>!i.checked && !i.indeterminate)
+        if(everyNotChecked){
+          parentItem.checked = false
+          parentItem.indeterminate = false
+        }else {
+          parentItem.checked = false
+          parentItem.indeterminate = true
+        }
+      }
+    })
   },
 
 

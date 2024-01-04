@@ -16,16 +16,11 @@
                 'is-show': item.children.length,
                 'not-open': !item.isExpand,
               }"
-              @click="toggleExpand(item)"
+              @click="handleItemExpand(item)"
             >
               ﹥
             </i>
-            <input
-              type="checkbox"
-              :checked="item.checked && !item.indeterminate"
-              :indeterminate="item.indeterminate"
-              @click="handleItemClick(item)"
-            />
+            <Checkbox :checked="item.checked" :indeterminate="item.indeterminate" @click="handleItemCheck(item)" />
             {{ item.name }}
           </span>
         </div>
@@ -34,8 +29,10 @@
   </div>
 </template>
 <script>
+import Checkbox from "./checkbox.vue";
 import config from "./config";
 export default {
+  components: { Checkbox },
   props: {
     treeData: {
       type: Array,
@@ -55,51 +52,77 @@ export default {
       positionTop: 0,
 
       treeListData: [],
+      showTreeList: [],
     };
   },
   computed: {
-    showTreeList() {
-      return this.treeListData.filter((item) => item.visible);
-    },
     // 计算当前视窗内实际要渲染的内容
     activeList() {
-      let showList = this.showTreeList;
       const start = this.startNum;
-      return showList.slice(start, start + this.showNumber);
+      return this.showTreeList.slice(start, start + this.showNumber);
     },
+  },
+  watch:{
+    treeData:{
+      handler(nVal){
+        if (!nVal || !nVal.length) return;
+        this.treeListData = config.flattening(nVal);
+        this.setShowTreeList();
+      },
+      immediate: true,
+      deep: true
+    }
   },
   mounted() {
     const boxHeight = this.$refs.scrollBox.offsetHeight;
     this.showNumber = Math.ceil(boxHeight / this.itemHeight);
     this.$refs.scrollBox.addEventListener("scroll", this.scrollEvent);
-
-    if (!this.treeData || !this.treeData.length) return;
-    this.treeListData = config.flattening(this.treeData);
   },
   methods: {
+    // 滚动条事件
     scrollEvent(event) {
-      const { scrollTop } = event.target
-      this.startNum = parseInt(scrollTop / this.itemHeight)
-      this.positionTop = scrollTop
+      const { scrollTop } = event.target;
+      this.startNum = Math.floor(scrollTop / this.itemHeight);
+      this.positionTop = scrollTop;
     },
-    toggleExpand(item, expand) {
+    // 展开事件
+    handleItemExpand(item, expand) {
       let isExpand = item.isExpand;
       item.isExpand = expand || !isExpand;
       if (item.children && item.children.length) {
-        config.setTreeStatus(item.children, !isExpand);
+        config.setChildrenExpand(item.children, !isExpand);
       }
       if (item._parentIds) {
-        this.setParentTreeExpand(item, item.isExpand);
+        config.setParentExpand(item, this.treeListData);
       }
+      this.setShowTreeList();
     },
-    handleItemClick() {},
-    setParentTreeExpand(item, checked) {
-      const parentIdArr = item._parentIds.split(',').reverse()
-      parentIdArr.forEach(parentId=>{
-        const parentItem = this.treeListData.find(i=>i.id === parentId )
-        parentItem.isExpand = true
-        parentItem.children.forEach(i=>i.visible = true)
+    // 选中事件
+    handleItemCheck(item, check = false) {
+      let isChecked = item.checked;
+      const indeterminate = item.indeterminate;
+      item.checked = indeterminate || check ? true : !isChecked;
+      if (item.children && item.children.length) {
+        config.setChildrenCheck(item.children, item.checked);
+      }
+      if (item._parentIds) {
+        config.setParentCheck(item, item.checked, this.treeListData);
+      }
+      this.setShowTreeList();
+    },
+    // 重新筛选可见的列表
+    setShowTreeList() {
+      this.showTreeList = this.treeListData.filter((item) => item.visible);
+    },
+    // 获取勾选的值
+    getCheckValue(){
+      const checkedArr = []
+      const halfCheckedArr = []
+      this.treeListData.forEach(item=>{
+        if(item.checked) checkedArr.push(item)
+        if(item.indeterminate) halfCheckedArr.push(item)
       })
+      return { checkedArr, halfCheckedArr }
     }
   },
   beforeDestroy() {
