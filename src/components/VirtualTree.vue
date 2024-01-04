@@ -13,14 +13,18 @@
             <i
               class="arrow"
               :class="{
-                'is-show': item.children.length,
+                'is-show': arrowIsShow(item),
                 'not-open': !item.isExpand,
               }"
               @click="handleItemExpand(item)"
             >
               ﹥
             </i>
-            <Checkbox :checked="item.checked" :indeterminate="item.indeterminate" @click="handleItemCheck(item)" />
+            <Checkbox
+              :checked="item.checked"
+              :indeterminate="item.indeterminate"
+              @click="handleItemCheck(item)"
+            />
             {{ item.name }}
           </span>
         </div>
@@ -43,6 +47,10 @@ export default {
       type: Number,
       default: 20,
     },
+    loadData: {
+      type: Function,
+      default: null,
+    },
   },
   data() {
     return {
@@ -62,16 +70,16 @@ export default {
       return this.showTreeList.slice(start, start + this.showNumber);
     },
   },
-  watch:{
-    treeData:{
-      handler(nVal){
+  watch: {
+    treeData: {
+      handler(nVal) {
         if (!nVal || !nVal.length) return;
         this.treeListData = config.flattening(nVal);
         this.setShowTreeList();
       },
       immediate: true,
-      deep: true
-    }
+      deep: true,
+    },
   },
   mounted() {
     const boxHeight = this.$refs.scrollBox.offsetHeight;
@@ -86,9 +94,24 @@ export default {
       this.positionTop = scrollTop;
     },
     // 展开事件
-    handleItemExpand(item, expand) {
+    async handleItemExpand(item, expand) {
       let isExpand = item.isExpand;
       item.isExpand = expand || !isExpand;
+
+      // 懒加载
+      if(!item.children || !item.children.length){
+        if (this.loadData && typeof this.loadData === "function") {
+          const children = await this.loadData(item);
+          if (children && children.length) {
+            item.children = config.flatteningChildren(children, item);
+            const index = this.treeListData.findIndex((i) => i.id === item.id);
+            this.treeListData.splice(index + 1, 0, ...item.children);
+          }else { // 没有子节点
+            item.isLeaf = true
+          }
+        }
+      }
+
       if (item.children && item.children.length) {
         config.setChildrenExpand(item.children, !isExpand);
       }
@@ -109,21 +132,27 @@ export default {
         config.setParentCheck(item, item.checked, this.treeListData);
       }
       this.setShowTreeList();
+      this.$emit("checked");
     },
     // 重新筛选可见的列表
     setShowTreeList() {
       this.showTreeList = this.treeListData.filter((item) => item.visible);
     },
+    // 是否显示 ’展开‘ 按钮
+    arrowIsShow(item){
+      if(this.loadData) return !item.isLeaf // 如果有懒加载 判断是否是最字节点
+      return item.children && item.children.length
+    },
     // 获取勾选的值
-    getCheckValue(){
-      const checkedArr = []
-      const halfCheckedArr = []
-      this.treeListData.forEach(item=>{
-        if(item.checked) checkedArr.push(item)
-        if(item.indeterminate) halfCheckedArr.push(item)
-      })
-      return { checkedArr, halfCheckedArr }
-    }
+    getCheckValue() {
+      const checkedArr = [];
+      const halfCheckedArr = [];
+      this.treeListData.forEach((item) => {
+        if (item.checked) checkedArr.push(item);
+        if (item.indeterminate) halfCheckedArr.push(item);
+      });
+      return { checkedArr, halfCheckedArr };
+    },
   },
   beforeDestroy() {
     if (!this.$refs.scrollBox) return;

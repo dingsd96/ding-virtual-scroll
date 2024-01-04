@@ -33,6 +33,21 @@ export default {
     return flatData
   },
 
+  flatteningChildren(children, node){
+    return children.map(item=>{
+      return {
+        ...item,
+        level: node.level+1,
+        visible: false,
+        isExpand: false,
+        checked: node.checked,
+        indeterminate: false,
+        _parentId: node.id,
+        _parentIds: node._parentIds ? node._parentIds + ',' + node.id : node.id
+      }
+    })
+  },
+
   // 设置子级的展开状态
   setChildrenExpand(children, status){
     const travel = (list) => {

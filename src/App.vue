@@ -1,7 +1,10 @@
 <template>
   <div id="app">
     <div style="width: 400px; height: 300px; margin: 0 auto;">
-      <VirtualTree :treeData="treeData" />
+      <VirtualTree
+        :treeData="treeData"
+        :load-data="loadData"
+      />
     </div>
   </div>
 </template>
@@ -40,7 +43,22 @@ export default {
         })
       }
 
-      return getList(12, '', 5)
+      // return getList(12, '', 5)
+      return getList(12, '', 2)
+    },
+    async loadData(item){
+      return new Promise(resolve => {
+        if(item.id === '0-0-0-0'){
+          resolve()
+        }
+        setTimeout(() => {
+          const children = [
+            { name: `${item.name}-0`, id: `${item.id}-0` },
+            { name: `${item.name}-1`, id: `${item.id}-1` },
+          ];
+          resolve(children);
+        }, 300);
+      });
     }
   }
 }
